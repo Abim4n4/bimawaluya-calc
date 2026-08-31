@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Bima Waluya Link Budget</title>
+<meta name="description" content="Kalkulator link budget FTTH untuk teknisi lapangan — hitung redaman serat, splice, konektor, dan splitter secara cepat.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🔌</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<div class="scanline" aria-hidden="true"></div>
+
+<header class="topbar">
+  <div class="topbar__brand">
+    <span class="topbar__mark">◐</span>
+    <div>
+      <h1 class="topbar__title">Bima Waluya Link Budget</h1>
+      <p class="topbar__subtitle">Ukur cepat total rasio jaringan FTTH</p>
+    </div>
+  </div>
+  <button type="button" class="topbar__status" id="topStatus" data-state="idle" title="Klik untuk lihat hasil lengkap">
+    <span class="led" id="topLed"></span>
+    <span id="topStatusText">BELUM DIHITUNG</span>
+    <span class="topbar__value" id="topRxValue"></span>
+  </button>
+</header>
+
+<main class="layout">
+
+  <!-- INPUT PANEL -->
+  <section class="panel panel--input" aria-label="Parameter link">
+    <div class="panel__header">
+      <span class="panel__eyebrow">01 — Parameter</span>
+      <h2>Masukkan Data Link</h2>
+      <p class="hint">Diisi berurutan mengikuti jalur fisik: OLT → OTB → ODC → ODP → rumah pelanggan. Tap judul tiap tahap untuk buka/tutup.</p>
+    </div>
+
+    <div class="accordion-toolbar">
+      <button type="button" class="btn btn--ghost btn--small" id="expandAllBtn">Buka semua</button>
+      <button type="button" class="btn btn--ghost btn--small" id="collapseAllBtn">Tutup semua</button>
+    </div>
+
+    <div class="field-group">
+      <label for="preset">Preset teknologi (SFP/OLT)</label>
+      <select id="preset">
+        <option value="custom">Custom / manual</option>
+        <option value="gpon-down">GPON — Downstream (OLT → ONT)</option>
+        <option value="gpon-up">GPON — Upstream (ONT → OLT)</option>
+        <option value="xgpon-down">XG-PON — Downstream</option>
+        <option value="xgspon">XGS-PON — Simetris 10G</option>
+        <option value="epon-down">EPON — Downstream</option>
+        <option value="10gepon-down">10G-EPON — Downstream</option>
+      </select>
+      <p class="hint">Preset mengisi nilai tipikal Tx SFP &amp; sensitivitas ONT. Selalu cek datasheet SFP/ONT yang sebenarnya dipakai.</p>
+    </div>
+
+    <!-- STAGE 1: SFP / OLT -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">1</span>
+        <span class="stage__icon">🖥️</span>
+        <span class="stage__title-text">SFP di OLT</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-group">
+          <label for="sfpTx">Daya keluar SFP (Tx) <span class="unit">dBm</span></label>
+          <input type="number" id="sfpTx" step="0.1" value="3">
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 2: Patchcord OLT -> OTB -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">2</span>
+        <span class="stage__icon">🔌</span>
+        <span class="stage__title-text">Patchcord OLT → OTB</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-row">
+          <div class="field-group">
+            <label for="oltConnCount">Jumlah konektor</label>
+            <input type="number" id="oltConnCount" step="1" min="0" value="2">
+          </div>
+          <div class="field-group">
+            <label for="oltConnLoss">Redaman per konektor <span class="unit">dB</span></label>
+            <input type="number" id="oltConnLoss" step="0.01" min="0" value="0.25">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 3: OTB -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">3</span>
+        <span class="stage__icon">🗄️</span>
+        <span class="stage__title-text">OTB (Optical Termination Box)</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-group">
+          <label for="otbLoss">Redaman OTB — pigtail/adaptor <span class="unit">dB</span></label>
+          <input type="number" id="otbLoss" step="0.01" min="0" value="0.5">
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"><span>Panjang gelombang (berlaku untuk semua kabel)</span></div>
+    <div class="field-group">
+      <label for="wavelength">Panjang gelombang</label>
+      <select id="wavelength">
+        <option value="0.35">1310 nm (0.35 dB/km)</option>
+        <option value="0.25" selected>1490 nm (0.25 dB/km)</option>
+        <option value="0.21">1550 nm (0.21 dB/km)</option>
+        <option value="custom">Custom…</option>
+      </select>
+    </div>
+    <div class="field-group" id="customAttenWrap" hidden>
+      <label for="customAtten">Koefisien redaman custom <span class="unit">dB/km</span></label>
+      <input type="number" id="customAtten" step="0.01" min="0" value="0.25">
+    </div>
+
+    <div class="field-group">
+      <label for="splitterValueMode">Nilai default insertion loss splitter</label>
+      <select id="splitterValueMode">
+        <option value="typical" selected>Tipikal (IEC/standar pabrik, kondisi baru)</option>
+        <option value="max">Maksimum — konservatif (tipikal + toleransi pabrikan)</option>
+      </select>
+      <p class="hint">Ini cuma ngisi <strong>nilai awal</strong> saat kamu pilih rasio splitter di bawah — field insertion loss ODC/ODP tetap <strong>bisa diketik manual</strong> kapan saja sesuai datasheet splitter riil yang dipakai, beda merk bisa beda ±0.5-1 dB.</p>
+    </div>
+
+    <!-- STAGE 4: Feeder OTB -> ODC -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">4</span>
+        <span class="stage__icon">〰️</span>
+        <span class="stage__title-text">Kabel feeder OTB → ODC</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-row">
+          <div class="field-group">
+            <label for="feederLength">Panjang kabel <span class="unit">km</span></label>
+            <input type="number" id="feederLength" step="0.01" min="0" value="2">
+          </div>
+          <div class="field-group">
+            <label for="feederSpliceCount">Jumlah sambungan</label>
+            <input type="number" id="feederSpliceCount" step="1" min="0" value="2">
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="feederSpliceLoss">Redaman per sambungan <span class="unit">dB</span></label>
+          <input type="number" id="feederSpliceLoss" step="0.01" min="0" value="0.1">
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 5: ODC -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">5</span>
+        <span class="stage__icon">⑂</span>
+        <span class="stage__title-text">ODC — IN &amp; splitter OUT</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <p class="hint hint--in" id="odcInReadout">IN ODC: — dBm</p>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="odcSplitterRatio">Splitter ODC</label>
+            <select id="odcSplitterRatio"></select>
+          </div>
+          <div class="field-group">
+            <label for="odcSplitterLoss">Insertion loss <span class="unit">dB (bisa diedit manual)</span></label>
+            <input type="number" id="odcSplitterLoss" step="0.1" min="0" value="7">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="odcConnCount">Jumlah konektor ODC</label>
+            <input type="number" id="odcConnCount" step="1" min="0" value="2">
+          </div>
+          <div class="field-group">
+            <label for="odcConnLoss">Redaman per konektor <span class="unit">dB</span></label>
+            <input type="number" id="odcConnLoss" step="0.01" min="0" value="0.25">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 6: Distribusi ODC -> ODP -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">6</span>
+        <span class="stage__icon">〰️</span>
+        <span class="stage__title-text">Kabel distribusi ODC → ODP</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-row">
+          <div class="field-group">
+            <label for="distLength">Panjang kabel <span class="unit">km</span></label>
+            <input type="number" id="distLength" step="0.01" min="0" value="1">
+          </div>
+          <div class="field-group">
+            <label for="distSpliceCount">Jumlah sambungan</label>
+            <input type="number" id="distSpliceCount" step="1" min="0" value="1">
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="distSpliceLoss">Redaman per sambungan <span class="unit">dB</span></label>
+          <input type="number" id="distSpliceLoss" step="0.01" min="0" value="0.1">
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 7-8: ODP -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">7–8</span>
+        <span class="stage__icon">⑂</span>
+        <span class="stage__title-text">ODP — IN &amp; splitter OUT</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <p class="hint hint--in" id="odpInReadout">IN ODP: — dBm</p>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="odpSplitterRatio">Splitter ODP</label>
+            <select id="odpSplitterRatio"></select>
+          </div>
+          <div class="field-group">
+            <label for="odpSplitterLoss">Insertion loss <span class="unit">dB (bisa diedit manual)</span></label>
+            <input type="number" id="odpSplitterLoss" step="0.1" min="0" value="10.5">
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field-group">
+            <label for="odpConnCount">Jumlah konektor ODP</label>
+            <input type="number" id="odpConnCount" step="1" min="0" value="2">
+          </div>
+          <div class="field-group">
+            <label for="odpConnLoss">Redaman per konektor <span class="unit">dB</span></label>
+            <input type="number" id="odpConnLoss" step="0.01" min="0" value="0.25">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 9: Drop cable -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">9</span>
+        <span class="stage__icon">〰️</span>
+        <span class="stage__title-text">Kabel drop (DC) ODP → rumah pelanggan</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-row">
+          <div class="field-group">
+            <label for="dropLength">Panjang tarikan DC <span class="unit">meter</span></label>
+            <input type="number" id="dropLength" step="1" min="0" value="50">
+          </div>
+          <div class="field-group">
+            <label for="dropConnCount">Jumlah konektor</label>
+            <input type="number" id="dropConnCount" step="1" min="0" value="2">
+          </div>
+        </div>
+        <div class="field-group">
+          <label for="dropConnLoss">Redaman per konektor <span class="unit">dB</span></label>
+          <input type="number" id="dropConnLoss" step="0.01" min="0" value="0.25">
+        </div>
+      </div>
+    </div>
+
+    <!-- STAGE 10: ONT -->
+    <div class="stage" data-stage>
+      <button type="button" class="stage__header" aria-expanded="true">
+        <span class="stage__num">10</span>
+        <span class="stage__icon">🏠</span>
+        <span class="stage__title-text">ONT di rumah pelanggan</span>
+        <span class="stage__chevron">⌄</span>
+      </button>
+      <div class="stage__body">
+        <div class="field-row">
+          <div class="field-group">
+            <label for="rxSens">Sensitivitas Rx ONT (min) <span class="unit">dBm</span></label>
+            <input type="number" id="rxSens" step="0.1" value="-28">
+          </div>
+          <div class="field-group">
+            <label for="maxOverload">Daya maks. ONT (overload) <span class="unit">dBm</span></label>
+            <input type="number" id="maxOverload" step="0.1" value="-8">
+          </div>
+        </div>
+        <p class="hint">Batas atas ini mencegah daya terlalu kuat merusak fotodetektor ONT — cek datasheet, tipikal GPON −8 s/d +2 dBm.</p>
+      </div>
+    </div>
+
+    <div class="divider"><span>Margin</span></div>
+
+    <div class="field-group">
+      <label for="safetyMargin">Margin keamanan minimum <span class="unit">dB</span></label>
+      <input type="number" id="safetyMargin" step="0.1" min="0" value="3">
+      <p class="hint">Cadangan daya yang disyaratkan untuk penuaan komponen, penyambungan ulang, dan variasi suhu.</p>
+    </div>
+
+    <div class="field-group">
+      <label for="uncertaintyPct">Faktor ketidakpastian lapangan <span class="unit">%</span></label>
+      <input type="number" id="uncertaintyPct" step="1" min="0" max="100" value="10">
+      <p class="hint">Buffer ekstra untuk kondisi nyata di luar spec datasheet: konektor kotor, kabel tertekuk, sambungan tidak konsisten, kabel non-standar, dll. Dipakai untuk hitung estimasi <strong>konservatif</strong> — angka inilah yang menentukan status LULUS/GAGAL, bukan angka ideal.</p>
+    </div>
+
+    <div class="actions">
+      <button type="button" class="btn btn--primary" id="calcBtn">Hitung Link Budget</button>
+      <button type="button" class="btn btn--ghost" id="resetBtn">Reset</button>
+    </div>
+  </section>
+
+  <!-- RESULT PANEL -->
+  <section class="panel panel--result" aria-label="Hasil perhitungan" id="resultPanel">
+    <div class="panel__header">
+      <span class="panel__eyebrow">02 — Hasil</span>
+      <h2>Ringkasan Budget</h2>
+    </div>
+
+    <div class="result-top">
+      <div class="gauge-wrap">
+        <div class="gauge" id="gauge">
+          <div class="gauge__track">
+            <div class="gauge__overload-zone" id="gaugeOverloadZone"></div>
+            <div class="gauge__margin-zone" id="gaugeMarginZone"></div>
+            <div class="gauge__pointer gauge__pointer--ideal" id="gaugeIdealPointer"></div>
+            <div class="gauge__pointer" id="gaugePointer">
+              <span class="gauge__pointer-label" id="gaugePointerLabel">—</span>
+            </div>
+          </div>
+          <div class="gauge__cap gauge__cap--top">
+            <span class="gauge__cap-label">Tx</span>
+            <span class="gauge__cap-value" id="gaugeTxLabel">—</span>
+          </div>
+          <div class="gauge__cap gauge__cap--bottom">
+            <span class="gauge__cap-label">Sensitivitas</span>
+            <span class="gauge__cap-value" id="gaugeRxLabel">—</span>
+          </div>
+        </div>
+        <div class="gauge-legend">
+          <span><i class="gauge-legend__swatch gauge-legend__swatch--solid"></i>Konservatif</span>
+          <span><i class="gauge-legend__swatch gauge-legend__swatch--dashed"></i>Ideal</span>
+        </div>
+      </div>
+
+      <div class="readout">
+        <div class="readout__main">
+          <span class="readout__label">Daya terima — konservatif <span class="readout__badge" title="Sudah termasuk buffer ketidakpastian lapangan">+buffer</span></span>
+          <span class="readout__value" id="rxPowerValue">— <small>dBm</small></span>
+          <span class="readout__ideal" id="idealRxNote">Ideal (sesuai spec): — dBm</span>
+        </div>
+        <div class="readout__row">
+          <div>
+            <span class="readout__label">Total redaman</span>
+            <span class="readout__sub" id="totalLossValue">— dB</span>
+          </div>
+          <div>
+            <span class="readout__label">Margin tersisa</span>
+            <span class="readout__sub" id="marginValue">— dB</span>
+          </div>
+        </div>
+        <div class="status-banner" id="statusBanner" data-state="idle">
+          <span class="led led--lg" id="statusLed"></span>
+          <div>
+            <strong id="statusTitle">Belum dihitung</strong>
+            <p id="statusDesc">Isi parameter di kiri lalu tekan “Hitung Link Budget”.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"><span>Titik ukur (checkpoint)</span></div>
+    <p class="hint">Cocokkan angka ini dengan pembacaan OPM asli di lapangan pada tiap titik.</p>
+    <div class="timeline" id="timeline" aria-label="Daya di tiap titik ukur"></div>
+
+    <div class="divider"><span>Rincian redaman</span></div>
+    <table class="breakdown" id="breakdownTable">
+      <thead>
+        <tr><th>Komponen</th><th>Detail</th><th>Redaman</th></tr>
+      </thead>
+      <tbody id="breakdownBody"></tbody>
+    </table>
+
+    <button type="button" class="btn btn--ghost btn--small" id="copyBtn">📋 Salin hasil sebagai teks</button>
+  </section>
+
+</main>
+
+<footer class="footer">
+  <p>Kalkulator Link Budget FTTH — nilai default bersifat tipikal untuk perencanaan, verifikasi dengan datasheet perangkat &amp; hasil pengukuran OPM di lapangan.</p>
+  <p class="footer__copyright">© rhd03 <span id="footerYear"></span></p>
+</footer>
+
+<script src="js/script.js"></script>
+</body>
+</html>
